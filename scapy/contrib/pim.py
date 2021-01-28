@@ -248,6 +248,77 @@ class PIMv2JoinPrune(_PIMGenericTlvBase):
     ]
 
 
+##################################
+# Bootstrap
+##################################
+
+class BootstrapRPAddr(_PIMGenericTlvBase):
+    name = "Bootstrap rp address"
+    fields_desc = [
+        ByteField("rp_address_family", 1),
+        ByteField("rp_address_type", 0),
+        IPField("rp_address", "0.0.0.0"),
+        ShortField("holdtime", 150),
+        ByteField("priority", 192),
+        ByteField("reserved", 0)
+    ]
+
+class BootstrapGroupAddr(_PIMGenericTlvBase):
+    name = "Bootstrap group address"
+    fields_desc = [
+        ByteField("addr_family", 1),
+        ByteField("encoding_type", 0),
+        BitField("bidirection", 0, 1),
+        BitField("reserved", 0, 6),
+        BitField("admin_scope_zone", 0, 1),
+        ByteField("mask_len", 32),
+        IPField("gaddr", "0.0.0.0"),
+        BitFieldLenField("rp_count", None, size=8, count_of="rp_addrs"),
+        BitFieldLenField("frag_rp_count", None, size=8, count_of="rp_addrs"),
+        BitFieldLenField("reserved", 0, size=16),
+        PacketListField("rp_addrs", [], BootstrapRPAddr,
+                        count_from=lambda x: x.rp_addrs)
+    ]
+
+class PIMv2Bootstrap(_PIMGenericTlvBase):
+    name = "Bootstrap"
+    fields_desc = [
+        ShortField("fragment_tag", 1000),
+        ByteField("hash_mask_len", 30),
+        ByteField("bsr_priority", 64),
+        ByteField("bsr_address_family", 1),
+        ByteField("bsr_address_type", 0),
+        IPField("bsr_address", "0.0.0.0"),
+        PacketListField("groups", [], BootstrapGroupAddr)
+    ]
+
+class EncodedGroupAddr(_PIMGenericTlvBase):
+    name = "group address"
+    fields_desc = [
+        ByteField("addr_family", 1),
+        ByteField("encoding_type", 0),
+        BitField("bidirection", 0, 1),
+        BitField("reserved", 0, 6),
+        BitField("admin_scope_zone", 0, 1),
+        ByteField("mask_len", 32),
+        IPField("gaddr", "0.0.0.0")
+    ]
+
+class PIMv2CRPAdv(_PIMGenericTlvBase):
+    name = "Bootstrap crp adv"
+    fields_desc = [
+        BitFieldLenField("prefix_count", None, size=8, count_of="groups"),
+        ByteField("priority", 192),
+        ShortField("holdtime", 150),
+        ByteField("rp_address_family", 1),
+        ByteField("rp_address_type", 0),
+        IPField("rp_address", "0.0.0.0"),
+        PacketListField("groups", [], EncodedGroupAddr,
+            count_from=lambda x: x.groups)
+    ]
+
 bind_layers(IP, PIMv2Hdr, proto=103)
 bind_layers(PIMv2Hdr, PIMv2Hello, type=0)
 bind_layers(PIMv2Hdr, PIMv2JoinPrune, type=3)
+bind_layers(PIMv2Hdr, PIMv2Bootstrap, type=4)
+bind_layers(PIMv2Hdr, PIMv2CRPAdv, type=8)
